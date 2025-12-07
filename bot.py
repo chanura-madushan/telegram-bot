@@ -4,7 +4,7 @@ import json
 import os
 
 # ⚠️ REPLACE THIS WITH YOUR ACTUAL BOT TOKEN ⚠️
-TOKEN = os.environ.get("8314573143:AAFsbCzpqwr9XLwjB66k8rC7uI7lzOPdVMg")
+TOKEN = os.environ.get("TOKEN")
 
 DATA_FILE = "files.json"
 
@@ -150,4 +150,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
