@@ -1,5 +1,5 @@
 from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, filters, ContextTypes
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 import json
 import os
 
@@ -17,8 +17,8 @@ def save_data():
     with open(DATA_FILE, "w") as f:
         json.dump(files, f, indent=4)
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
+def start(update: Update, context: CallbackContext):
+    update.message.reply_text(
         "📁 File Saver Bot\n\n"
         "Send me any file (document, photo, video).\n"
         "I'll save it and you can retrieve it later.\n\n"
@@ -27,7 +27,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/get <id> - Download a file"
     )
 
-async def save_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def save_file(update: Update, context: CallbackContext):
     try:
         if update.message.document:
             file = update.message.document
@@ -51,7 +51,7 @@ async def save_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         save_data()
         
-        await update.message.reply_text(
+        update.message.reply_text(
             f"✅ File saved!\n"
             f"Name: {file_name}\n"
             f"ID: {file_unique_id}"
@@ -59,46 +59,47 @@ async def save_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     except Exception as e:
         print(f"Error: {e}")
-        await update.message.reply_text("❌ Error saving file.")
 
-async def list_files(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def list_files(update: Update, context: CallbackContext):
     if not files:
-        await update.message.reply_text("No files saved yet.")
+        update.message.reply_text("No files saved yet.")
         return
     
     text = "Saved files:\n\n"
     for uid, info in files.items():
-        text += f"📁 {info['name']}\nID: `{uid}`\n\n"
+        text += f"📁 {info['name']}\nID: {uid}\n\n"
     
-    await update.message.reply_text(text, parse_mode="Markdown")
+    update.message.reply_text(text)
 
-async def get_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def get_file(update: Update, context: CallbackContext):
     if not context.args:
-        await update.message.reply_text("Use: /get <file_id>")
+        update.message.reply_text("Use: /get <file_id>")
         return
     
     file_id = context.args[0]
     
     if file_id not in files:
-        await update.message.reply_text("File not found.")
+        update.message.reply_text("File not found.")
         return
     
-    await update.message.reply_document(files[file_id]["file_id"])
+    update.message.reply_document(files[file_id]["file_id"])
 
 def main():
     if not TOKEN:
         print("ERROR: No token set!")
         return
     
-    app = ApplicationBuilder().token(TOKEN).build()
+    updater = Updater(TOKEN, use_context=True)
+    dp = updater.dispatcher
     
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("list", list_files))
-    app.add_handler(CommandHandler("get", get_file))
-    app.add_handler(MessageHandler(filters.Document.ALL | filters.PHOTO | filters.VIDEO, save_file))
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("list", list_files))
+    dp.add_handler(CommandHandler("get", get_file))
+    dp.add_handler(MessageHandler(Filters.document | Filters.photo | Filters.video, save_file))
     
     print("Bot is running...")
-    app.run_polling()
+    updater.start_polling()
+    updater.idle()
 
 if __name__ == "__main__":
     main()
