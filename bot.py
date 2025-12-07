@@ -447,7 +447,7 @@ async def rename_folder(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Folder not found!")
             return
         
-        if new_name.lower() in [f.lower() for f in folders.keys()]:
+        if new_name.lower() in [f.lower() for f in folders.keys() if f != old_name]:
             await update.message.reply_text(f"❌ Folder '{new_name}' already exists!")
             return
         
@@ -519,7 +519,73 @@ async def search_files(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
 
-# Keep existing get_file and delete_file functions (they work with the new system)
+async def get_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        if not update.message:
+            return
+            
+        if not context.args:
+            await update.message.reply_text("Usage: /get <file_id>")
+            return
+        
+        file_id = context.args[0]
+        
+        if file_id not in files:
+            await update.message.reply_text("❌ File not found!")
+            return
+        
+        file_info = files[file_id]
+        
+        # Send file back
+        await update.message.reply_document(
+            file_info["file_id"], 
+            caption=f"📁 {file_info['name']}\nID: `{file_id}`",
+            parse_mode="Markdown"
+        )
+        
+    except Exception as e:
+        print(f"⚠️ Error getting file: {e}")
+        try:
+            await update.message.reply_text("❌ Error sending file.")
+        except:
+            pass
+
+async def delete_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        if not update.message:
+            return
+            
+        if not context.args:
+            await update.message.reply_text("Usage: /delete <file_id>")
+            return
+        
+        file_id = context.args[0]
+        
+        if file_id not in files:
+            await update.message.reply_text("❌ File not found!")
+            return
+        
+        # Remove from folder first
+        file_info = files[file_id]
+        folder = file_info.get("folder", "default")
+        
+        if folder in folders and file_id in folders[folder]["files"]:
+            folders[folder]["files"].remove(file_id)
+        
+        # Remove from files dictionary
+        del files[file_id]
+        
+        save_json_file(DATA_FILE, files)
+        save_json_file(FOLDERS_FILE, folders)
+        
+        await update.message.reply_text(f"✅ File deleted: {file_info['name']}")
+        
+    except Exception as e:
+        print(f"⚠️ Error deleting file: {e}")
+        try:
+            await update.message.reply_text("❌ Error deleting file.")
+        except:
+            pass
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle errors in the bot."""
@@ -563,7 +629,7 @@ def main():
             app.add_handler(CommandHandler("list", list_files))
             app.add_handler(CommandHandler("listall", list_all_files))
             app.add_handler(CommandHandler("get", get_file))
-            app.add_handler(CommandHandler("delete", get_file))  # Keep delete for now
+            app.add_handler(CommandHandler("delete", delete_file))
             app.add_handler(CommandHandler("help", start))
             
             # Add file handler
